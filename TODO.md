@@ -7,13 +7,13 @@ Proyecto de RAG (Retrieval-Augmented Generation) con memoria conversacional para
 ## 🛠 Fase 1: Backend & Ingestión (Día 1)
 *Objetivo: Procesar el documento y preparar el motor de búsqueda.*
 
-- [ ] **Configuración del Entorno**
+- [x] **Configuración del Entorno**
     - [x] Inicializar repositorio y `.gitignore`.
-    - [ ] Configurar variables de entorno (`.env`) para las API Keys.
-    - [ ] Instalar dependencias: `fastapi`, `langchain`, `faiss-cpu`, `pypdf`, `anthropic`.
-- [ ] **Pipeline de Procesamiento**
-    - [ ] Crear script de carga de PDF con `PyPDFLoader`.
-    - [ ] Implementar `RecursiveCharacterTextSplitter` para el chunking (probar 1000 tokens con 200 de overlap).
+    - [x] Configurar variables de entorno (`.env`) para las API Keys.
+    - [x] Instalar dependencias: `fastapi`, `langchain`, `faiss-cpu`, `pypdf`, `anthropic`.
+- [x] **Pipeline de Procesamiento**
+    - [x] Crear script de carga de PDF con `PyPDFLoader`.
+    - [x] Implementar `RecursiveCharacterTextSplitter` para el chunking (probar 1000 tokens con 200 de overlap).
 - [ ] **Vector Store**
     - [ ] Configurar `FAISS` localmente.
     - [ ] Generar embeddings de los chunks y guardarlos en el vector store.
