@@ -21,3 +21,6 @@ Thumbs.db
 # Documentos de prueba (opcional)
 data/*.pdf
 temp/
+
+# Archivo de tareas pendientes, opcional para mantenerlo fuera del repositorio
+TODO.md 
