@@ -1,9 +1,9 @@
 from typing import List
 from fastapi import APIRouter, File, UploadFile, HTTPException
-
+from app.models.schemas import UploadResponse
 import os
 
-router = APIRouter(prefix="/files", tags=["files"])
+router = APIRouter(prefix="/upload", tags=["upload"])
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -11,7 +11,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_CONTENT_TYPES = {"application/pdf"}
 
 
-@router.post("/upload/", status_code=201)
+@router.post("/", status_code=201, response_model=UploadResponse)
 async def upload_file(files: List[UploadFile] = File(...)):
     """Endpoint para subir archivos PDF al servidor. Valida que los archivos sean PDFs válidos y los guarda en el directorio de uploads."""
     # 1. Validar todos los archivos antes de guardar
@@ -31,8 +31,7 @@ async def upload_file(files: List[UploadFile] = File(...)):
         except OSError as e:
             raise HTTPException(status_code=500, detail=f"Error al guardar el archivo '{f.filename}': {str(e)}")
         
-    return {
-        "message": f"{len(saved_files)} archivo(s) subido(s) exitosamente.",
-        "files": saved_files
-    }
-    
+    return UploadResponse(
+        message=f"{len(saved_files)} archivo(s) subido(s) exitosamente.",
+        files=saved_files
+    )

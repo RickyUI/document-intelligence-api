@@ -1,87 +1,81 @@
-# Document Intelligence API
+# FinWise
 
-Este proyecto consiste en una API de procesamiento de documentos diseñada para realizar análisis semántico sobre archivos PDF. Utiliza técnicas de Generación Aumentada por Recuperación (RAG) para permitir consultas en lenguaje natural, manteniendo la coherencia a través de una memoria conversacional integrada.
+API REST construida con FastAPI que permite cargar multiples documentos PDF financieros, indexarlos semanticamente con FAISS y OpenAI Embeddings, y consultarlos en lenguaje natural usando RAG (Retrieval-Augmented Generation). El sistema responde citando la fuente exacta, incluyendo documento y pagina, de donde proviene la informacion. El frontend esta construido con Gradio.
 
----
+## Sobre el proyecto
 
-## Funcionalidades Principales
+FinWise esta orientado al analisis de reportes trimestrales, estados financieros, earnings calls y otros documentos corporativos en PDF. El flujo principal consiste en cargar archivos, procesarlos en chunks, generar embeddings, indexarlos en FAISS y luego responder preguntas en lenguaje natural recuperando primero el contexto mas relevante.
 
-* **Pipeline RAG:** Extracción y fragmentación de texto de PDFs para búsqueda semántica eficiente.
-* **Memoria de Sesión:** Implementación de historial de conversación para permitir preguntas de seguimiento contextualmente relevantes.
-* **Arquitectura de Microservicios:** Backend construido con FastAPI para asegurar baja latencia y escalabilidad.
-* **Integración con LLM:** Uso de los modelos de Claude (Anthropic) para el razonamiento y la síntesis de respuestas.
+## Stack tecnologico
 
----
+- **Backend:** FastAPI
+- **LLM:** OpenAI GPT-4o-mini
+- **Embeddings:** OpenAI `text-embedding-3-small`
+- **Vector Store:** FAISS (en memoria)
+- **Chunking:** LangChain `RecursiveCharacterTextSplitter`
+- **PDF Loader:** LangChain `PyPDFLoader`
+- **Frontend:** Gradio
+- **Orquestacion LLM:** LangChain LCEL (`Runnable`)
 
-## Estructura del Proyecto
+## Estructura del proyecto
 
 ```text
-document-intel-api/
-├── app/
-│   ├── core/            # Configuraciones globales y manejo de variables de entorno.
-│   ├── models/          # Esquemas de Pydantic para la validación de peticiones y respuestas.
-│   ├── services/        # Servicios de procesamiento: RAG, extracción de PDF y lógica de FAISS.
-│   └── main.py          # Punto de entrada de la aplicación y definición de rutas.
-├── data/                # Directorio destinado al almacenamiento temporal de archivos cargados.
-├── faiss_index/         # Directorio para la persistencia del índice vectorial local.
-├── .env.example         # Referencia de las variables de entorno necesarias para la ejecución.
-└── TODO.md              # Documento de seguimiento de tareas y fases de desarrollo.
+app/
+├── core/
+│   ├── config.py          # Configuracion general de la aplicacion
+│   └── constants.py       # Constantes globales (UPLOAD_DIR, modelos, etc.)
+├── models/
+│   └── schemas.py         # Modelos Pydantic para request/response
+├── routers/
+│   ├── upload.py          # POST /upload/ — recibe y guarda PDFs en disco
+│   ├── index.py           # POST /index/ — chunking e indexing en FAISS
+│   └── query.py           # GET  /query/ — consultas RAG con citacion de fuentes
+├── services/
+│   ├── processor.py       # PDFProcessor — carga y divide PDFs en chunks
+│   ├── vector_store.py    # VectorStore — gestiona embeddings e indice FAISS
+│   └── llm_service.py     # Servicio LLM — cadena RAG con prompt financiero
+└── main.py                # Punto de entrada — lifespan, routers, app.state
 ```
 
----
+## Endpoints
 
-## Stack Tecnológico
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/upload/` | Recibe uno o varios PDFs y los guarda en disco |
+| POST | `/index/` | Procesa los PDFs guardados y los indexa en FAISS |
+| GET | `/query/` | Consulta en lenguaje natural sobre los documentos indexados |
 
-* **Lenguaje:** Python 3.11+
-* **Framework Web:** FastAPI
-* **Orquestación de IA:** LangChain
-* **Motor de Búsqueda Vectorial:** FAISS (Facebook AI Similarity Search)
-* **Modelo de Lenguaje:** Anthropic Claude API
-* **Procesamiento de Documentos:** PyPDF
+## Flujo de la aplicacion
 
----
-
-## Instalación y Configuración
-
-### 1. Clonar el Repositorio
-
-```bash
-git clone https://github.com/usuario/document-intel-api.git
-cd document-intel-api
+```text
+Usuario sube PDFs -> /upload/ guarda en disco
+                  -> /index/ genera chunks + embeddings + indexa en FAISS
+                  -> /query/ recupera contexto relevante + LLM genera respuesta con fuentes
 ```
 
-### 2. Gestión del Entorno Virtual
+## Variables de entorno
+
+Crea un archivo `.env` basado en `.env.example`:
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+## Instalacion y uso
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # En sistemas Windows: venv\Scripts\activate
+# Instalar dependencias
 pip install -r requirements.txt
-```
 
-### 3. Configuración de Variables
-
-Es necesario crear un archivo `.env` basado en el archivo de ejemplo para incluir las credenciales de acceso a la API de Anthropic:
-
-```bash
-cp .env.example .env
-```
-
-### 4. Ejecución del Servidor
-
-Para iniciar la API en modo de desarrollo con recarga automática:
-
-```bash
+# Correr el servidor
 uvicorn app.main:app --reload
+
+# Acceder a la documentacion interactiva
+http://localhost:8000/docs
 ```
 
----
+## Notas de diseno
 
-## Interfaz de Desarrollo
-
-Una vez el servidor esté en ejecución, la documentación técnica y las pruebas de los endpoints (Swagger UI) están disponibles en la ruta local:
-
-http://127.0.0.1:8000/docs
-
----
-
-Este repositorio ha sido estructurado siguiendo estándares de ingeniería de software para facilitar su integración en entornos de producción y evaluación técnica.
+- FAISS corre en memoria, por lo que el indice se reconstruye llamando a `/index/` en cada sesion del servidor. La arquitectura esta preparada para migrar a una base vectorial persistente como Pinecone o pgvector.
+- La instancia de `VectorStore` se comparte entre todos los endpoints usando `app.state` de FastAPI.
+- Los servicios como `PDFProcessor` y `VectorStore` son independientes de FastAPI: no conocen `HTTPException` ni conceptos del framework, lo que facilita probarlos de forma aislada.

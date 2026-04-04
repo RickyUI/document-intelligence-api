@@ -1,8 +1,8 @@
-from urllib import request
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 import os
 from dotenv import load_dotenv
 from app.services.processor import PDFProcessor
+from app.models.schemas import IndexResponse
 
 router = APIRouter(prefix="/index", tags=["index"])
 
@@ -10,8 +10,8 @@ load_dotenv() # Carga las variables de entorno desde el archivo .env
 
 UPLOAD_DIR = "uploads"
 
-@router.post("/index/", status_code=201)
-async def index_files():
+@router.post("/", status_code=201, response_model=IndexResponse)
+async def index_files(request: Request):
     """Endpoint para indexar los archivos PDF subidos al servidor. Procesa cada archivo utilizando PDFProcessor para cargarlo y dividirlo en fragmentos, luego crea un vector store utilizando VectorStore y los embeddings generados por OpenAIEmbeddings."""
     # Verificamos que exista el directorio de uploads antes de intentar listar los archivos
     if not (os.path.exists(UPLOAD_DIR) and os.path.isdir(UPLOAD_DIR)):
@@ -30,7 +30,7 @@ async def index_files():
         for f in files:
             # 1. Verificar que el archivo no esté vacío antes de procesarlo
             with open(os.path.join(UPLOAD_DIR, f), "rb") as file:
-                content = file.read() # Lee el contenido del archivo sin bloquearl el servidor, permitiendo que otros usuarios sean atentidos durante la espera
+                content = file.read() 
                 if not content:
                     raise ValueError(f"El archivo '{f}' está vacío o no se pudo leer correctamente.")
                 
@@ -43,7 +43,7 @@ async def index_files():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al procesar los archivos: {str(e)}")
     
-    return {
-        "message": f"{len(files)} archivo(s) indexado(s) exitosamente.",
-        "files": files
-    }
+    return IndexResponse(
+        message=f"{len(files)} archivo(s) indexado(s) exitosamente.",
+        files=files
+    )

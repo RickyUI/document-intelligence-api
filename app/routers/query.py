@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from app.models.schemas import QueryResponse, QueryRequest
 import os
 
 # Carga las variables de entorno desde el archivo .env
@@ -11,8 +12,8 @@ load_dotenv()
 router = APIRouter(prefix="/query", tags=["query"])
 
 
-@router.get("/query/")
-async def query(question: str, request: Request):
+@router.get("/", response_model=QueryResponse)
+async def query(request: Request, body: QueryRequest):
     """Endpoint para realizar consultas sobre los archivos indexados."""
     llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -39,13 +40,13 @@ async def query(question: str, request: Request):
     retriever = vector_store.get_retriever()
     
     # Recuperar los documents
-    docs = retriever.invoke(question)
+    docs = retriever.invoke(body.question)
 
     # Construir la cadena de RAG utilizando el prompt template, el LLM y un output parser para obtener una respuesta formateada
     rag_chain = prompt_template | llm | StrOutputParser()
     response = rag_chain.invoke({
         "context": docs,
-        "question": question
+        "question": body.question
     })
     
     # Extraer las fuentes de los documentos utilizados para generar la respuesta
@@ -55,8 +56,5 @@ async def query(question: str, request: Request):
         page = doc.metadata.get("page", "desconocida")
         src.append(f"{source} (página {page})")
     
-    return {
-        "response": response,
-        "sources": src
-    }
+    return QueryResponse(response=response, sources=src)
     
