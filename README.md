@@ -1,81 +1,96 @@
 # FinWise
 
-API REST construida con FastAPI que permite cargar multiples documentos PDF financieros, indexarlos semanticamente con FAISS y OpenAI Embeddings, y consultarlos en lenguaje natural usando RAG (Retrieval-Augmented Generation). El sistema responde citando la fuente exacta, incluyendo documento y pagina, de donde proviene la informacion. El frontend esta construido con Gradio.
+FinWise es una aplicacion para analizar documentos financieros en PDF con un flujo RAG. El backend expone una API REST en FastAPI para subir archivos, indexarlos con FAISS y responder preguntas en lenguaje natural usando OpenAI. Ademas, el proyecto ya incluye `app/app.py`, archivo reservado para construir el frontend con Gradio.
 
-## Sobre el proyecto
+## Estado actual del proyecto
 
-FinWise esta orientado al analisis de reportes trimestrales, estados financieros, earnings calls y otros documentos corporativos en PDF. El flujo principal consiste en cargar archivos, procesarlos en chunks, generar embeddings, indexarlos en FAISS y luego responder preguntas en lenguaje natural recuperando primero el contexto mas relevante.
+- Backend API en FastAPI funcional.
+- Carga de multiples PDFs al directorio `uploads/`.
+- Procesamiento de PDFs con `PyPDFLoader` y fragmentacion con `RecursiveCharacterTextSplitter`.
+- Indexacion semantica en memoria con FAISS y embeddings de OpenAI.
+- Consulta de documentos con un flujo RAG y devolucion de fuentes.
+- `app/app.py` agregado como punto de partida para el frontend con Gradio.
+- `llm_service.py` ya no forma parte del proyecto.
 
 ## Stack tecnologico
 
-- **Backend:** FastAPI
-- **LLM:** OpenAI GPT-4o-mini
-- **Embeddings:** OpenAI `text-embedding-3-small`
-- **Vector Store:** FAISS (en memoria)
-- **Chunking:** LangChain `RecursiveCharacterTextSplitter`
-- **PDF Loader:** LangChain `PyPDFLoader`
-- **Frontend:** Gradio
-- **Orquestacion LLM:** LangChain LCEL (`Runnable`)
+- FastAPI
+- Gradio
+- LangChain
+- OpenAI
+- FAISS
+- PyPDF
+- Python dotenv
 
 ## Estructura del proyecto
 
 ```text
 app/
-├── core/
-│   ├── config.py          # Configuracion general de la aplicacion
-│   └── constants.py       # Constantes globales (UPLOAD_DIR, modelos, etc.)
-├── models/
-│   └── schemas.py         # Modelos Pydantic para request/response
-├── routers/
-│   ├── upload.py          # POST /upload/ — recibe y guarda PDFs en disco
-│   ├── index.py           # POST /index/ — chunking e indexing en FAISS
-│   └── query.py           # GET  /query/ — consultas RAG con citacion de fuentes
-├── services/
-│   ├── processor.py       # PDFProcessor — carga y divide PDFs en chunks
-│   ├── vector_store.py    # VectorStore — gestiona embeddings e indice FAISS
-│   └── llm_service.py     # Servicio LLM — cadena RAG con prompt financiero
-└── main.py                # Punto de entrada — lifespan, routers, app.state
+|-- app.py                  # Frontend en Gradio (en construccion)
+|-- main.py                 # App FastAPI y ciclo de vida del backend
+|-- core/
+|   |-- config.py
+|   `-- constants.py
+|-- models/
+|   `-- schemas.py          # Modelos de request y response
+|-- routers/
+|   |-- upload.py           # POST /upload/
+|   |-- index.py            # POST /index/
+|   `-- query.py            # POST /query/
+`-- services/
+    |-- processor.py        # Carga y fragmentacion de PDFs
+    `-- vector_store.py     # Gestion del indice FAISS
 ```
-
-## Endpoints
-
-| Metodo | Ruta | Descripcion |
-|--------|------|-------------|
-| POST | `/upload/` | Recibe uno o varios PDFs y los guarda en disco |
-| POST | `/index/` | Procesa los PDFs guardados y los indexa en FAISS |
-| GET | `/query/` | Consulta en lenguaje natural sobre los documentos indexados |
 
 ## Flujo de la aplicacion
 
-```text
-Usuario sube PDFs -> /upload/ guarda en disco
-                  -> /index/ genera chunks + embeddings + indexa en FAISS
-                  -> /query/ recupera contexto relevante + LLM genera respuesta con fuentes
-```
+1. El usuario sube uno o varios PDF a `/upload/`.
+2. El backend guarda los archivos en `uploads/`.
+3. Se llama `/index/` para cargar, dividir e indexar los documentos.
+4. Se consulta `/query/` con una pregunta en lenguaje natural.
+5. El sistema recupera contexto relevante y genera una respuesta con sus fuentes.
+
+## Endpoints disponibles
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| POST | `/upload/` | Recibe y guarda uno o varios archivos PDF |
+| POST | `/index/` | Procesa los PDFs guardados y construye el indice FAISS |
+| POST | `/query/` | Responde preguntas usando los documentos indexados |
 
 ## Variables de entorno
 
-Crea un archivo `.env` basado en `.env.example`:
+Crea un archivo `.env` a partir de `.env.example`:
 
 ```env
 OPENAI_API_KEY=sk-...
 ```
 
-## Instalacion y uso
+## Instalacion
 
 ```bash
-# Instalar dependencias
 pip install -r requirements.txt
+```
 
-# Correr el servidor
+## Ejecucion del backend
+
+```bash
 uvicorn app.main:app --reload
+```
 
-# Acceder a la documentacion interactiva
+Documentacion interactiva:
+
+```text
 http://localhost:8000/docs
 ```
 
-## Notas de diseno
+## Frontend con Gradio
 
-- FAISS corre en memoria, por lo que el indice se reconstruye llamando a `/index/` en cada sesion del servidor. La arquitectura esta preparada para migrar a una base vectorial persistente como Pinecone o pgvector.
-- La instancia de `VectorStore` se comparte entre todos los endpoints usando `app.state` de FastAPI.
-- Los servicios como `PDFProcessor` y `VectorStore` son independientes de FastAPI: no conocen `HTTPException` ni conceptos del framework, lo que facilita probarlos de forma aislada.
+El archivo `app/app.py` se dejo como base para construir la interfaz en Gradio. En el estado actual del repositorio, ese frontend todavia no implementa la UI completa ni reemplaza al backend FastAPI; la API sigue siendo la parte funcional principal del proyecto.
+
+## Notas tecnicas
+
+- El indice FAISS vive en memoria y se reinicia cuando el servidor se apaga.
+- `app.state.vector_store` comparte la instancia del vector store entre los routers.
+- La logica de consulta al LLM esta actualmente dentro de `app/routers/query.py`.
+- Si vas a avanzar con la interfaz Gradio, `app/app.py` es ahora el archivo correcto para ese trabajo.

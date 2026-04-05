@@ -36,7 +36,7 @@ async def index_files(request: Request):
                 
             # 2. Procesar cada archivo PDF utilizando PDFProcessor para cargarlo y dividirlo en fragmentos
             processor = PDFProcessor(os.path.join(UPLOAD_DIR, f))
-            chunks = processor.load_and_split(chunk_size=1000, chunk_overlap=200)
+            chunks = processor.load_and_split(chunk_size=2000, chunk_overlap=400)
     
             # 3. Crear el vector store utilizando VectorStore y los fragmentos obtenidos del PDF
             vector_store.create_vector_store(chunks)

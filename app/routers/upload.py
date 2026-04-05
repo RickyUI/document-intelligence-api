@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, Request, UploadFile, HTTPException
 from app.models.schemas import UploadResponse
 import os
 
@@ -35,3 +35,34 @@ async def upload_file(files: List[UploadFile] = File(...)):
         message=f"{len(saved_files)} archivo(s) subido(s) exitosamente.",
         files=saved_files
     )
+
+
+@router.get("/files", response_model=List[str])
+async def get_uploaded_files():
+    """Endpoint para obtener la lista de archivos subidos."""
+    if not (os.path.exists(UPLOAD_DIR) and os.path.isdir(UPLOAD_DIR)):
+        raise HTTPException(status_code=400, detail="El directorio de uploads no existe o no es un directorio válido.")
+    return os.listdir(UPLOAD_DIR)
+
+
+@router.delete("/delete", status_code=200)
+async def delete_uploaded_files(request: Request):
+    """Endpoint para eliminar todos los archivos subidos."""
+    if not (os.path.exists(UPLOAD_DIR) and os.path.isdir(UPLOAD_DIR)):
+        raise HTTPException(status_code=400, detail="El directorio de uploads no existe o no es un directorio válido.")
+    
+    for filename in os.listdir(UPLOAD_DIR):
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            raise HTTPException(status_code=500, detail=f"Error al eliminar el archivo '{filename}': {str(e)}")
+    
+    vector_store = request.app.state.vector_store
+    vector_store.reset()
+    
+    return {
+        "message": "Todos los archivos subidos han sido eliminados y el vector store ha sido reiniciado."
+    }
+    
+

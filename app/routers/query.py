@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from app.models.schemas import QueryResponse, QueryRequest
 import os
@@ -12,7 +12,7 @@ load_dotenv()
 router = APIRouter(prefix="/query", tags=["query"])
 
 
-@router.get("/", response_model=QueryResponse)
+@router.post("/", response_model=QueryResponse)
 async def query(request: Request, body: QueryRequest):
     """Endpoint para realizar consultas sobre los archivos indexados."""
     llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
